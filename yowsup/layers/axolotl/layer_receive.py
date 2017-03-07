@@ -22,6 +22,8 @@ from axolotl.groups.senderkeyname import SenderKeyName
 from axolotl.groups.groupsessionbuilder import GroupSessionBuilder
 from axolotl.protocol.senderkeydistributionmessage import SenderKeyDistributionMessage
 
+import binascii
+
 import logging
 import copy
 logger = logging.getLogger(__name__)
@@ -81,6 +83,9 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         encMessageProtocolEntity = EncryptedMessageProtocolEntity.fromProtocolTreeNode(node)
         isGroup =  node["participant"] is not None
         senderJid = node["participant"] if isGroup else node["from"]
+
+        print "Paul:rec:enc:" + node.toString()
+
         if node.getChild("enc")["v"] == "2" and node["from"] not in self.v2Jids:
             self.v2Jids.append(node["from"])
         try:
@@ -125,6 +130,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         preKeyWhisperMessage = PreKeyWhisperMessage(serialized=enc.getData())
         sessionCipher = self.getSessionCipher(pkMessageProtocolEntity.getAuthor(False))
         plaintext = sessionCipher.decryptPkmsg(preKeyWhisperMessage)
+        print "Paul:rec:dec:raw:" + binascii.hexlify(plaintext)
         if enc.getVersion() == 2:
             paddingByte = plaintext[-1] if type(plaintext[-1]) is int else ord(plaintext[-1])
             padding = paddingByte & 0xFF
@@ -139,7 +145,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         whisperMessage = WhisperMessage(serialized=enc.getData())
         sessionCipher = self.getSessionCipher(encMessageProtocolEntity.getAuthor(False))
         plaintext = sessionCipher.decryptMsg(whisperMessage)
-
+        print "Paul:rec:dec:raw:" + binascii.hexlify(plaintext)
         if enc.getVersion() == 2:
             paddingByte = plaintext[-1] if type(plaintext[-1]) is int else ord(plaintext[-1])
             padding = paddingByte & 0xFF
@@ -158,6 +164,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
             padding = ord(plaintext[-1]) & 0xFF
             plaintext = plaintext[:-padding]
             plaintext = plaintext.encode() if sys.version_info >= (3, 0) else plaintext
+            print "Paul:rec:dec:raw:" + binascii.hexlify(plaintext)
             self.parseAndHandleMessageProto(encMessageProtocolEntity, plaintext)
 
         except NoSessionException as e:
@@ -171,6 +178,7 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
         handled = False
         try:
             m.ParseFromString(serializedData)
+            #print "Paul:" + m.ListFields()
         except:
             print("DUMP:")
             print(serializedData)
@@ -213,9 +221,18 @@ class AxolotlReceivelayer(AxolotlBaseLayer):
             print(m.ListFields())
             raise ValueError("Unhandled")
 
+    # TODO: Important! This is the type of message for receiving a group message key :)
     def handleSenderKeyDistributionMessage(self, senderKeyDistributionMessage, axolotlAddress):
         groupId = senderKeyDistributionMessage.groupId
         axolotlSenderKeyDistributionMessage = SenderKeyDistributionMessage(serialized=senderKeyDistributionMessage.axolotl_sender_key_distribution_message)
+        print "Paul:rec:dec:gkmsg:gID:" + groupId
+        print "Paul:rec:dec:gkmsg:kID:" + axolotlSenderKeyDistributionMessage.getId()
+        print "Paul:rec:dec:gkmsg:kIter:" + axolotlSenderKeyDistributionMessage.getIteration()
+        print "Paul:rec:dec:gkmsg:CK:" + axolotlSenderKeyDistributionMessage.getChainKey()
+        print "Paul:rec:dec:gkmsg:sigK:" + axolotlSenderKeyDistributionMessage.getSignatureKey()
+        print "Paul:rec:dec:gkmsg:kType:" + axolotlSenderKeyDistributionMessage.getType()
+
+        # TODO: a symmetric key (root key) and the current chain key
         groupSessionBuilder = GroupSessionBuilder(self.store)
         senderKeyName = SenderKeyName(groupId, axolotlAddress)
         groupSessionBuilder.process(senderKeyName, axolotlSenderKeyDistributionMessage)

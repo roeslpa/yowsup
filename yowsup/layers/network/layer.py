@@ -1,3 +1,5 @@
+import datetime
+
 from yowsup.layers import YowLayer, YowLayerEvent, EventCallback
 from yowsup.common.http.httpproxy import HttpProxy
 from yowsup.layers.network.layer_interface import YowNetworkLayerInterface
@@ -99,10 +101,13 @@ class YowNetworkLayer(YowLayer, asyncore.dispatcher_with_send):
             logger.debug("HttpProxy handle read: %s" % data)
         else:
             data = self.recv(readSize)
+            #print datetime.datetime.now() + "Read data:[[" + data + "]]\n"
             self.receive(data)
+
 
     def send(self, data):
         if self.connected:
+            #print datetime.datetime.now() + "Sent data:[[" + data + "]]\n"
             self.out_buffer = self.out_buffer + data
             self.initiate_send()
 

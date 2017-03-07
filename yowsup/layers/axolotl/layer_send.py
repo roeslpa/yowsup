@@ -15,6 +15,8 @@ from random import randint
 
 from .layer_base import AxolotlBaseLayer
 
+import binascii
+
 logger = logging.getLogger(__name__)
 
 class AxolotlSendLayer(AxolotlBaseLayer):
@@ -50,6 +52,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
             self.toLower(node)
 
     def receive(self, protocolTreeNode):
+        print "Paul:sen:rec:" + protocolTreeNode.toString()
         if not self.processIqRegistry(protocolTreeNode):
             if protocolTreeNode.tag == "receipt":
                 '''
@@ -135,6 +138,8 @@ class AxolotlSendLayer(AxolotlBaseLayer):
                                            )
         self.enqueueSent(node)
         self.toLower(messageEntity.toProtocolTreeNode())
+        print "Paul:sen:senGS:nd3:" + messageEntity.toProtocolTreeNode().toString()
+
 
     def sendToContact(self, node):
         recipient_id = node["to"].split('@')[0]
@@ -147,6 +152,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
         return self.sendEncEntities(node, [EncProtocolEntity(EncProtocolEntity.TYPE_MSG if ciphertext.__class__ == WhisperMessage else EncProtocolEntity.TYPE_PKMSG, 2, ciphertext.serialize(), mediaType)])
 
     def sendToGroupWithSessions(self, node, jidsNeedSenderKey = None, retryCount=0):
+        print "Paul:sen:senGS:nd1:" + node.toString()
         jidsNeedSenderKey = jidsNeedSenderKey or []
         groupJid = node["to"]
         ownNumber = self.getLayerInterface(YowAuthenticationProtocolLayer).getUsername(False)
@@ -163,6 +169,7 @@ class AxolotlSendLayer(AxolotlBaseLayer):
                     message = self.serializeToProtobuf(node, message)
 
                 ciphertext = sessionCipher.encrypt(message.SerializeToString() + self.getPadding())
+                print "Paul:sen:senGS:ct:" + ciphertext
                 encEntities.append(
                     EncProtocolEntity(
                             EncProtocolEntity.TYPE_MSG if ciphertext.__class__ == WhisperMessage else EncProtocolEntity.TYPE_PKMSG
@@ -174,9 +181,10 @@ class AxolotlSendLayer(AxolotlBaseLayer):
             messageData = self.serializeToProtobuf(node).SerializeToString()
             ciphertext = cipher.encrypt(messageData + self.getPadding())
             mediaType = node.getChild("media")["type"] if node.getChild("media") else None
+            print "Paul:sen:senGS:ct:" + binascii.hexlify(ciphertext)
 
             encEntities.append(EncProtocolEntity(EncProtocolEntity.TYPE_SKMSG, 2, ciphertext, mediaType))
-
+        print "Paul:sen:senGS:nd2:" + node.toString()
         self.sendEncEntities(node, encEntities)
 
     def ensureSessionsAndSendToGroup(self, node, jids):
